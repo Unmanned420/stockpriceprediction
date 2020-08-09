@@ -1,0 +1,81 @@
+import pandas as pd
+import numpy as np
+import pandas_datareader as web
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+import datetime as dt
+import math
+ 
+start=dt.datetime(2016,1,1)
+end=dt.datetime.today()
+dataframe=web.DataReader(input('Enter ticker-'),'yahoo',start,end)
+ 
+print('LETS LOOK AT THE DATAFRAME')
+print(dataframe.head())
+
+df=dataframe[['Adj Close']]
+
+print('DATAFRAME AFTER REMOVING USELESS INFO')
+print(df.tail())
+
+df.plot.line(y='Adj Close', figsize=(16,3), label='Adj Close')
+
+plt.figure(figsize=(16,4))
+df['Adj Close'].rolling(window=7).mean().plot(label='7 Day MA')
+df['Adj Close'].plot(label='Adj Close')
+plt.legend()
+
+forecast_out=int(math.ceil(0.05 * len(df)))
+ 
+df['Prediction']=df[['Adj Close']].shift(-forecast_out)
+ 
+print(df.tail())
+ 
+x=np.array(df.drop(['Prediction'],1))
+ 
+x=x[:-forecast_out]
+ 
+print(x)
+ 
+y=np.array(df['Prediction'])
+ 
+y=y[:-forecast_out]
+ 
+print(y)
+ 
+x_train,x_test,y_train,y_test =train_test_split(x, y, test_size=0.2)
+ 
+svr_rbf = SVR(kernel='rbf', C=1e3, gamma=0.1)
+svr_rbf.fit(x_train, y_train)
+ 
+svm_confidence = svr_rbf.score(x_test, y_test)
+print("svm confidence: ", svm_confidence)
+ 
+lr=LinearRegression()
+lr.fit(x_train,y_train)
+ 
+lr_confidence=lr.score(x_test,y_test)
+print("lr confidence: ",lr_confidence)
+ 
+x_forecast = np.array(df.drop(['Prediction'],1))[-forecast_out:]
+print(x_forecast)
+ 
+lr_prediction = lr.predict(x_forecast)
+print(lr_prediction)
+ 
+svm_prediction = svr_rbf.predict(x_forecast)
+print(svm_prediction)
+
+svmpred=pd.Series(svm_prediction)
+lrpred=pd.Series(lr_prediction)
+
+a=x_forecast.flatten()
+actual=pd.Series(a)
+
+plt.figure(figsize=(16,4))
+svmpred.plot(label='Support Vector Machine Prediction')
+lrpred.plot(label='Linear Regression Prediction')
+actual.plot(label='Actual Price')
+plt.legend()
